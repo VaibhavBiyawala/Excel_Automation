@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 
 # Read the three Excel files
 file1 = pd.read_excel('fee_receipt.xlsx')
@@ -37,4 +38,7 @@ for idx, row in file1.iterrows():
     file1.at[idx, 'difference'] = row['Amount(â‚¹)'] - file1.at[idx, 'rozarpay']
 
 # Save the results to a new Excel file
-file1.to_excel('result_file.xlsx', index=False)
+output_dir = 'output'
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+file1.to_excel(os.path.join(output_dir, 'result_file.xlsx'), index=False)

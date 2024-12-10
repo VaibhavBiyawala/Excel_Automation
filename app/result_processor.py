@@ -31,6 +31,9 @@ def process_final_results(file1, file4):
     return grouped
 
 def save_final_results(grouped, filename='grouped_results.xlsx'):
-    filepath = os.path.join('..', 'output', filename)
+    output_dir = os.path.join('..', 'output')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    filepath = os.path.join(output_dir, filename)
     grouped.to_excel(filepath, index=False)
     return filepath

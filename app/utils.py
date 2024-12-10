@@ -13,7 +13,10 @@ def reorder_columns(file1):
 
 # Save the final output to Excel
 def save_output(file1, filename='result_file_4.xlsx'):
-    filepath = os.path.join('..', 'output', filename)
+    output_dir = os.path.join('..', 'output')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    filepath = os.path.join(output_dir, filename)
     file1.to_excel(filepath, index=False)
     return filepath
 
@@ -26,5 +29,5 @@ def concat_trans_his_files(file4_path, file5_path):
     combined_file.to_excel(output_path, index=False)
     
 
-    return output_path  
+    return output_path
 
