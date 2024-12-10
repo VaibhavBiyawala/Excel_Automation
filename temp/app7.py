@@ -11,8 +11,6 @@ file1.rename(columns={'TRF ID': 'trf_id'}, inplace=True)
 file2.rename(columns={'id': 'trf_id'}, inplace=True)
 file3.rename(columns={'entity_id': 'trf_id'}, inplace=True)
 
-print(file1.columns)
-
 def process_trf_and_utr(row, file2, file3):
     if pd.notnull(row.get('UTR')) and not pd.isna(row.get('case1_flag')):  # Skip rows not requiring processing
         return row['trf_id'], row['UTR'], row.get('Amount(₹)', 0), 0, 'processed'
@@ -110,5 +108,3 @@ desired_column_order = ['Receipt', 'Payer name', 'Payer type', 'Section / Depart
 # Reorder the columns in file1
 file1 = file1[desired_column_order]
 file1.to_excel('result_file_4.xlsx', index=False)
-
-print("Processing complete with corrections.")

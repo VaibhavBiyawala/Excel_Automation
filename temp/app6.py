@@ -11,7 +11,6 @@ file1.rename(columns={'TRF ID': 'trf_id'}, inplace=True)
 file2.rename(columns={'id': 'trf_id'}, inplace=True)
 file3.rename(columns={'entity_id': 'trf_id'}, inplace=True)
 
-print(file1.columns)
 
 def process_trf_and_utr(row, file2, file3):
     if pd.notnull(row.get('UTR')):  # Skip already processed rows
@@ -97,4 +96,3 @@ for idx, row in file1.iterrows():
 # Save the updated DataFrame
 file1.to_excel('result_file_combined_final_corrected.xlsx', index=False)
 
-print("Processing complete with corrections. Results saved to 'result_file_combined_final_corrected.xlsx'")

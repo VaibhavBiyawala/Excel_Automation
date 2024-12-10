@@ -1,0 +1,74 @@
+
+.hero {
+    background-image: url('https://t4.ftcdn.net/jpg/08/52/61/01/360_F_852610192_mDCPHk42G9qHrROdQYx93eHuk5AMFpQQ.jpg');
+    background-size: cover;
+    background-position: center;
+    color: #001A6E;
+    padding: 100px 0;
+    text-align: center;
+    border: 2px dashed black;
+}
+.testimonial {
+    background: #f8f9fa;
+    padding: 50px 0;
+    border: 2px dashed black;
+}
+.navbar {
+    background-color: #04abc1;
+    border: 2px dashed black;
+    font-size: 20px;
+}
+.navbar-brand, .nav-link {
+    color:  #e1e6f6;
+}
+
+.nav-link:hover {
+    border-radius: 10px;
+    background-color: #94f3ff;
+    color: #343a40;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba%280, 0, 0, 1%29' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+}
+.btn-primary {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+.btn-success {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+.upload-box {
+    border: 2px dashed #007bff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    background-color: #f8f9fa;
+    position: relative;
+}
+.upload-box input[type="file"] {
+    display: none;
+}
+.upload-box label {
+    display: block;
+    cursor: pointer;
+    color: #007bff;
+    font-weight: bold;
+}
+.upload-box.dragover {
+    background-color: #cee3f8;
+}
+.upload-box .file-name {
+    margin-top: 10px;
+    color: #007bff;
+}
+footer {
+    background-color: #343a40;
+    color: white;
+}
+footer a {
+    color: #ffc107;
+}

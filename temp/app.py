@@ -7,7 +7,6 @@ file3 = pd.read_excel('Combine November 2024.xlsx')
 
 columns_to_drop = ['UTR', 'Rozarpay', 'Diff']  
 file1.drop(columns=columns_to_drop, inplace=True) 
-print(file1.columns)
 
 # Ensure column names are consistent for processing
 file1.rename(columns={'TRF ID': 'trf_id'}, inplace=True)
@@ -38,7 +37,4 @@ for idx, row in file1.iterrows():
     file1.at[idx, 'difference'] = row['Amount(â‚¹)'] - file1.at[idx, 'rozarpay']
 
 # Save the results to a new Excel file
-print(file1.columns)
 file1.to_excel('result_file.xlsx', index=False)
-
-print("Processing complete. Results saved to 'result_file.xlsx'")

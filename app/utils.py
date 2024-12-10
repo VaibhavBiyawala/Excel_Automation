@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 
 # Reorder columns to the desired format
 def reorder_columns(file1):
@@ -14,4 +15,16 @@ def reorder_columns(file1):
 def save_output(file1, filename='result_file_4.xlsx'):
     filepath = os.path.join('..', 'output', filename)
     file1.to_excel(filepath, index=False)
-    print(f"Processing complete. File saved as {filename}")
+    return filepath
+
+def concat_trans_his_files(file4_path, file5_path):
+    file4 = pd.read_excel(file4_path, skiprows=6)
+    file5 = pd.read_excel(file5_path, skiprows=6)
+    
+    combined_file = pd.concat([file4, file5])
+    output_path = file4_path  + 'x'
+    combined_file.to_excel(output_path, index=False)
+    
+
+    return output_path  
+
