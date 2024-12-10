@@ -12,6 +12,9 @@ app.secret_key = '1234567890'
 UPLOAD_FOLDER = 'upload'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
 @app.route('/', methods=['GET', 'POST'])
 def upload_files():
     if request.method == 'POST':
