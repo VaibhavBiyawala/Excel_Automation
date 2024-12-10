@@ -13,7 +13,7 @@ def reorder_columns(file1):
 
 # Save the final output to Excel
 def save_output(file1, filename='result_file_4.xlsx'):
-    output_dir = os.path.join('..', 'output')
+    output_dir = os.path.join('output')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     filepath = os.path.join(output_dir, filename)
