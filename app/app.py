@@ -9,14 +9,15 @@ import os
 
 app = Flask(__name__)
 app.secret_key = '1234567890'
-UPLOAD_FOLDER = 'upload'
+UPLOAD_FOLDER = '/upload'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_files():
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+        
     if request.method == 'POST':
         file1 = request.files['file1']
         file2 = request.files['file2']
