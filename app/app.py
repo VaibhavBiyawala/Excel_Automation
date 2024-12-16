@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, send_file, session
+from flask import Flask, request, render_template, redirect, url_for, send_file, session, flash
 from data_loader import load_files
 from processing import process_row, process_unmatched_rows
 from result_processor import process_final_results, save_final_results
@@ -9,12 +9,34 @@ import os
 
 app = Flask(__name__)
 app.secret_key = '1234567890'
-UPLOAD_FOLDER = '/upload'
+UPLOAD_FOLDER = ''
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# Hardcoded credentials
+USERNAME = 'admin'
+PASSWORD = 'password'
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if username == USERNAME and password == PASSWORD:
+            session['logged_in'] = True
+            return redirect(url_for('upload_files'))
+        else:
+            flash('Invalid credentials. Please try again.')
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('login'))
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_files():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
         
     if request.method == 'POST':
         file1 = request.files['file1']
@@ -23,11 +45,11 @@ def upload_files():
         file4 = request.files['file4']
         file5 = request.files['file5']
 
-        file1_path = os.path.join(app.config['UPLOAD_FOLDER'], file1.filename)
-        file2_path = os.path.join(app.config['UPLOAD_FOLDER'], file2.filename)
-        file3_path = os.path.join(app.config['UPLOAD_FOLDER'], file3.filename)
-        file4_path = os.path.join(app.config['UPLOAD_FOLDER'], file4.filename)
-        file5_path = os.path.join(app.config['UPLOAD_FOLDER'], file5.filename)
+        file1_path = file1.filename
+        file2_path = file2.filename
+        file3_path = file3.filename
+        file4_path = file4.filename
+        file5_path = file5.filename
 
         # Save the uploaded files
         file1.save(file1_path)
@@ -59,12 +81,18 @@ def upload_files():
 
 @app.route('/results')
 def results():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+        
     file1 = session.get('file1', None)
     file2 = session.get('file2', None)
     return render_template('results.html', file1=file1, file2=file2)
 
 @app.route('/download/<filename>')
 def download_file(filename):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+        
     file_path = os.path.join(filename)
     return send_file(file_path, as_attachment=True)
 
