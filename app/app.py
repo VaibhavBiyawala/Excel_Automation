@@ -6,6 +6,7 @@ from utils import reorder_columns, save_output, concat_trans_his_files
 
 import pandas as pd
 import os
+import re
 
 app = Flask(__name__)
 app.secret_key = '1234567890'
@@ -96,6 +97,10 @@ def download_file(filename):
     file_path = os.path.join(filename)
     return send_file(file_path, as_attachment=True)
 
+def extract_utr(description):
+    match = re.search(r'(UTIBR|AXIS)[0-9A-Z]*', description)
+    return match.group(0) if match else None
+
 def process_files(file1_path, file2_path, file3_path, file4_path):
     file1, file2, file3, file4 = load_files(file1_path, file2_path, file3_path, file4_path)
 
@@ -108,7 +113,25 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
     file1.drop(columns=['case_flag'], inplace=True)
     file1 = reorder_columns(file1)
 
+    # Extract UTR from file4 descriptions
+    file4['Extracted UTR'] = file4['Description'].apply(extract_utr)
+
+
+    # Add 'Account Number' column to file1 by matching UTR
+    file1['Account Number'] = file1['UTR'].apply(lambda utr: file4[file4['Extracted UTR'] == utr]['Account Number'].values[0] if not file4[file4['Extracted UTR'] == utr].empty else None)
+    file1['Account Number'] = file1['Account Number'].astype("string")
+    
+    print(file1.columns)
+
+    # Reorder columns to ensure 'Account Number' is included
+    # file1 = reorder_columns(file1)
+
+    print(file1.columns)
+
     d1_path = save_output(file1)
+    
+    print(file1.columns)
+    
     grouped_results = process_final_results(file1, file4)
     d2_path = save_final_results(grouped_results)
     
@@ -116,4 +139,4 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
 
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)
