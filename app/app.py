@@ -118,9 +118,7 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
 
 
     # Add 'Account Number' column to file1 by matching UTR
-    file1['Account Number'] = file1['UTR'].apply(lambda utr: file4[file4['Extracted UTR'] == utr]['Account Number'].values[0] if not file4[file4['Extracted UTR'] == utr].empty else None)
-    file1['Account Number'] = file1['Account Number'].astype("string")
-    
+    file1['Account Number'] = file1['UTR'].apply(lambda utr: file4[file4['Extracted UTR'] == utr]['Account Number'].values[0] if not file4[file4['Extracted UTR'] == utr].empty else None)    
     print(file1.columns)
 
     # Reorder columns to ensure 'Account Number' is included
@@ -139,4 +137,4 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)

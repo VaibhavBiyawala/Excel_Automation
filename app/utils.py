@@ -22,15 +22,12 @@ def concat_trans_his_files(file4_path, file5_path):
     account_no = file4.iloc[0, 0][-12:]  
     file4 = pd.read_excel(file4_path, skiprows=6)
     file4['Account Number'] = account_no
-    file4['Account Number'] = file4['Account Number'].astype("string")
 
     
     file5 = pd.read_excel(file5_path, skiprows=5, header=None)
     account_no = file5.iloc[0, 0][-12:]  
     file5 = pd.read_excel(file5_path, skiprows=6)
     file5['Account Number'] = account_no    
-    file5['Account Number'] = file5['Account Number'].astype("string")
-
     
     combined_file = pd.concat([file4, file5])
     output_path = file4_path  + 'x'
