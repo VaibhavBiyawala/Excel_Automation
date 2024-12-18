@@ -31,11 +31,37 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.pop('logged_in', None)
+    session.clear()  # Clear all session variables
     return redirect(url_for('login'))
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_files():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    return render_template('upload.html')
+
+@app.route('/results')
+def results():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+        
+    file1 = session.get('file1', None)
+    file2 = session.get('file2', None)
+    pre_primary = session.get('pre_primary', None)
+    primary = session.get('primary', None)
+    return render_template('results.html', file1=file1, file2=file2, pre_primary=pre_primary, primary=primary)
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+        
+    file_path = os.path.join(filename)
+    return send_file(file_path, as_attachment=True)
+
+@app.route('/online_upload', methods=['GET', 'POST'])
+def online_upload():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
         
@@ -46,11 +72,11 @@ def upload_files():
         file4 = request.files['file4']
         file5 = request.files['file5']
 
-        file1_path = file1.filename
-        file2_path = file2.filename
-        file3_path = file3.filename
-        file4_path = file4.filename
-        file5_path = file5.filename
+        file1_path = os.path.join(app.config['UPLOAD_FOLDER'], file1.filename)
+        file2_path = os.path.join(app.config['UPLOAD_FOLDER'], file2.filename)
+        file3_path = os.path.join(app.config['UPLOAD_FOLDER'], file3.filename)
+        file4_path = os.path.join(app.config['UPLOAD_FOLDER'], file4.filename)
+        file5_path = os.path.join(app.config['UPLOAD_FOLDER'], file5.filename)
 
         # Save the uploaded files
         file1.save(file1_path)
@@ -62,7 +88,7 @@ def upload_files():
         concat_file = concat_trans_his_files(file4_path, file5_path)
 
         # Process the files
-        d1_path, d2_path = process_files(file1_path, file2_path, file3_path, concat_file)
+        d1_path, d2_path, pre_primary_path, primary_path = process_files(file1_path, file2_path, file3_path, concat_file)
 
         # Delete the uploaded files after processing
         os.remove(file1_path)
@@ -75,27 +101,42 @@ def upload_files():
         # Store processed file paths in session for download
         session['file1'] = d1_path
         session['file2'] = d2_path
+        session['pre_primary'] = pre_primary_path
+        session['primary'] = primary_path
 
         return redirect(url_for('results'))
 
-    return render_template('upload.html')
+    return render_template('online_upload.html')
 
-@app.route('/results')
-def results():
+@app.route('/cash_upload', methods=['GET', 'POST'])
+def cash_upload():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
         
-    file1 = session.get('file1', None)
-    file2 = session.get('file2', None)
-    return render_template('results.html', file1=file1, file2=file2)
+    if request.method == 'POST':
+        file_cash = request.files['fileCash']
+        file_cash_path = os.path.join(app.config['UPLOAD_FOLDER'], file_cash.filename)
 
-@app.route('/download/<filename>')
-def download_file(filename):
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
-        
-    file_path = os.path.join(filename)
-    return send_file(file_path, as_attachment=True)
+        # Save the uploaded file
+        file_cash.save(file_cash_path)
+
+        # Process the cash file
+        pre_primary_path, primary_path = process_cash_file(file_cash_path)
+
+        # Delete the uploaded file after processing
+        os.remove(file_cash_path)
+
+        # Clear online transaction session variables
+        session.pop('file1', None)
+        session.pop('file2', None)
+
+        # Store processed file paths in session for download
+        session['pre_primary'] = pre_primary_path
+        session['primary'] = primary_path
+
+        return redirect(url_for('results'))
+
+    return render_template('cash_upload.html')
 
 def extract_utr(description):
     match = re.search(r'(UTIBR|AXIS)[0-9A-Z]*', description)
@@ -119,22 +160,65 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
 
     # Add 'Account Number' column to file1 by matching UTR
     file1['Account Number'] = file1['UTR'].apply(lambda utr: file4[file4['Extracted UTR'] == utr]['Account Number'].values[0] if not file4[file4['Extracted UTR'] == utr].empty else None)    
-    print(file1.columns)
-
+    
     # Reorder columns to ensure 'Account Number' is included
     # file1 = reorder_columns(file1)
-
-    print(file1.columns)
-
+    
     d1_path = save_output(file1)
-    
-    print(file1.columns)
-    
+    pre_primary_path, primary_path = filter_section(d1_path)
+        
     grouped_results = process_final_results(file1, file4)
     d2_path = save_final_results(grouped_results)
     
-    return d1_path, d2_path
+    return d1_path, d2_path, pre_primary_path, primary_path
 
+def filter_section(file_cash_path):
+    # read the excel file
+    file_cash = pd.read_excel(file_cash_path)
+
+    # Filter pre-primary and primary sections
+    pre_primary_sections = ['N -', 'U K G -', 'L K G -']
+    primary_sections = ['C1 -', 'C2 -', 'C3 -', 'C4 -', 'C5 -', 'C6 -', 'C7 -', 'C8 -']
+    
+    # Ensure the 'Section / Department' column is treated as string
+    file_cash['Section / Department'] = file_cash['Section / Department'].astype(str)
+    
+    # Filter pre-primary and primary sections
+    pre_primary_df = file_cash[file_cash['Section / Department'].apply(lambda x: any(x.startswith(prefix) for prefix in pre_primary_sections))]
+    primary_df = file_cash[file_cash['Section / Department'].apply(lambda x: any(x.startswith(prefix) for prefix in primary_sections))]
+
+    # Save the filtered data to new Excel files
+    pre_primary_path = file_cash_path.replace('.xlsx', '_pre_primary.xlsx')
+    primary_path = file_cash_path.replace('.xlsx', '_primary.xlsx')
+    pre_primary_df.to_excel(pre_primary_path, index=False)
+    primary_df.to_excel(primary_path, index=False)
+
+    return pre_primary_path, primary_path
+
+def process_cash_file(file_cash_path, skip_row = True):
+    if skip_row:
+        file_cash = pd.read_csv(file_cash_path, skiprows=4)
+    else:
+        file_cash = pd.read_csv(file_cash_path)
+
+    # Filter pre-primary and primary sections
+    pre_primary_sections = ['N -', 'U K G -', 'L K G -']
+    primary_sections = ['C1 -', 'C2 -', 'C3 -', 'C4 -', 'C5 -', 'C6 -', 'C7 -', 'C8 -']
+    
+    # Ensure the 'Section / Department' column is treated as string
+    file_cash['Section / Department'] = file_cash['Section / Department'].astype(str)
+    
+    # Filter pre-primary and primary sections
+    pre_primary_df = file_cash[file_cash['Section / Department'].apply(lambda x: any(x.startswith(prefix) for prefix in pre_primary_sections))]
+    primary_df = file_cash[file_cash['Section / Department'].apply(lambda x: any(x.startswith(prefix) for prefix in primary_sections))]
+
+    # Save the filtered data to new CSV files
+    pre_primary_path = file_cash_path.replace('.csv', '_pre_primary.csv')
+    primary_path = file_cash_path.replace('.csv', '_primary.csv')
+    pre_primary_df.to_csv(pre_primary_path, index=False)
+    primary_df.to_csv(primary_path, index=False)
+
+    return pre_primary_path, primary_path
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)

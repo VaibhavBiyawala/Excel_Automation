@@ -15,65 +15,15 @@
         <p>Automate your Excel tasks with ease</p>
     </div>
     <div class="container mt-5">
-        <h1 class="text-center">Upload Files</h1>
-        <form action="/" method="post" enctype="multipart/form-data" class="mt-4">
-            <div class="upload-box mb-4" id="uploadBox1">
-                <label for="file1">Fee Receipt File (Software) (ex: 13150114648874_fee_reciept.csv)</label>
-                <input type="file" name="file1" id="file1" required>
-                <div class="file-name" id="fileName1"></div>
-            </div>
-            <div class="upload-box mb-4" id="uploadBox2">
-                <label for="file2">Transfer File (ex: Transfer Nov 2024.xlsx)</label>
-                <input type="file" name="file2" id="file2" required>
-                <div class="file-name" id="fileName2"></div>
-            </div>
-            <div class="upload-box mb-4" id="uploadBox3">
-                <label for="file3">Combined File (ex: Combine November 2024.xlsx)</label>
-                <input type="file" name="file3" id="file3" required>
-                <div class="file-name" id="fileName3"></div>
-            </div>
-            <div class="upload-box mb-4" id="uploadBox4">
-                <label for="file4">Transaction History File (Razorpay) (ex: OpTransactionHistoryUX310-12-2024.xls)</label>
-                <input type="file" name="file4" id="file4" required>
-                <div class="file-name" id="fileName4"></div>
-            </div>
-            <div class="upload-box mb-4" id="uploadBox5">
-                <label for="file5">Transaction History File (Razorpay) (ex: OpTransactionHistoryUX310-12-2024.xls)</label>
-                <input type="file" name="file5" id="file5" required>
-                <div class="file-name" id="fileName5"></div>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Upload</button>
-        </form>
+        <h1 class="text-center">Select Transaction Type</h1>
+        <div class="text-center">
+            <a href="{{ url_for('online_upload') }}" class="btn btn-primary btn-lg mt-1">Online Transaction</a>
+            <a href="{{ url_for('cash_upload') }}" class="btn btn-info btn-lg mt-1">Cash Transaction</a>
+        </div>
     </div>
     {% include 'footer.html' %}
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <script>
-        document.querySelectorAll('.upload-box').forEach(box => {
-            const input = box.querySelector('input[type="file"]');
-            const fileNameDiv = box.querySelector('.file-name');
-
-            input.addEventListener('change', () => {
-                fileNameDiv.textContent = input.files.length > 0 ? input.files[0].name : '';
-            });
-
-            box.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                box.classList.add('dragover');
-            });
-
-            box.addEventListener('dragleave', () => {
-                box.classList.remove('dragover');
-            });
-
-            box.addEventListener('drop', (e) => {
-                e.preventDefault();
-                box.classList.remove('dragover');
-                input.files = e.dataTransfer.files;
-                fileNameDiv.textContent = input.files.length > 0 ? input.files[0].name : '';
-            });
-        });
-    </script>
 </body>
 </html>

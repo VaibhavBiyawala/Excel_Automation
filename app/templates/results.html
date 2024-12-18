@@ -19,10 +19,18 @@
         <h1 class="text-center">Download Processed Files</h1>
         <div class="mt-4">
             {% if file1 %}
-                <a href="{{ url_for('download_file', filename=file1) }}" class="btn btn-success btn-block">Fedena File</a><br>
+                <a href="{{ url_for('download_file', filename=file1) }}" class="btn btn-success btn-block">Fedena File</a>
             {% endif %}
             {% if file2 %}
                 <a href="{{ url_for('download_file', filename=file2) }}" class="btn btn-success btn-block">Difference Report File</a>
+            {% endif %}
+            {% if pre_primary or primary %}
+                {% if pre_primary %}
+                    <a href="{{ url_for('download_file', filename=pre_primary) }}" class="btn btn-success btn-block">Pre-Primary Section</a>
+                {% endif %}
+                {% if primary %}
+                    <a href="{{ url_for('download_file', filename=primary) }}" class="btn btn-success btn-block">Primary Section</a>
+                {% endif %}
             {% endif %}
         </div>
     </div>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Cash Transaction Files</title>
+    <link rel="icon" href="../static/img/favicon.ico" type="image/x-icon">
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../static/css/styles.css" rel="stylesheet">
+</head>
+<body>
+    {% include 'header.html' %}
+    <div class="hero">
+        <h1>Upload Cash Transaction Files</h1>
+    </div>
+    <div class="container mt-5">
+        <form action="/cash_upload" method="post" enctype="multipart/form-data" class="mt-4">
+            <div class="upload-box mb-4">
+                <label for="fileCash">Fee Receipt File (Cash) (ex: 13150114648874_fee_reciept.csv)</label>
+                <input type="file" name="fileCash" id="fileCash" required>
+                <div class="file-name" id="fileNameCash"></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Upload</button>
+        </form>
+    </div>
+    {% include 'footer.html' %}
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        document.querySelectorAll('.upload-box').forEach(box => {
+            const input = box.querySelector('input[type="file"]');
+            const fileNameDiv = box.querySelector('.file-name');
+
+            input.addEventListener('change', () => {
+                fileNameDiv.textContent = input.files.length > 0 ? input.files[0].name : '';
+            });
+
+            box.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                box.classList.add('dragover');
+            });
+
+            box.addEventListener('dragleave', () => {
+                box.classList.remove('dragover');
+            });
+
+            box.addEventListener('drop', (e) => {
+                e.preventDefault();
+                box.classList.remove('dragover');
+                input.files = e.dataTransfer.files;
+                fileNameDiv.textContent = input.files.length > 0 ? input.files[0].name : '';
+            });
+        });
+    </script>
+</body>
+</html>
