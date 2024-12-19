@@ -161,12 +161,27 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
     # Add 'Account Number' column to file1 by matching UTR
     file1['Account Number'] = file1['UTR'].apply(lambda utr: file4[file4['Extracted UTR'] == utr]['Account Number'].values[0] if not file4[file4['Extracted UTR'] == utr].empty else None)    
     
-    # Reorder columns to ensure 'Account Number' is included
-    # file1 = reorder_columns(file1)
-    
-    d1_path = save_output(file1)
-    pre_primary_path, primary_path = filter_section(d1_path)
+    # Add 'Name Valid Transaction' column based on conditions
+    def validate_transaction(row):
+        collection = row['Collection']
+        account_number = row['Account Number']
         
+        if pd.isna(collection) or pd.isna(account_number):
+            return 'missing / improper data'
+        
+        if 'extra' in collection.lower() and account_number != 5205010739:
+            return False
+        if 'fee' in collection.lower() and account_number != 5205009403:
+            return False
+        
+        return None
+
+
+    file1['Valid Transaction'] = file1.apply(validate_transaction, axis=1)
+
+    d1_path = save_output(file1)
+
+    pre_primary_path, primary_path = filter_section(d1_path)        
     grouped_results = process_final_results(file1, file4)
     d2_path = save_final_results(grouped_results)
     
