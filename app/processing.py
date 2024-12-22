@@ -2,12 +2,28 @@ import re
 import pandas as pd
 
 # Case 1: Extract TRF ID and UTR from Payment Note
+# def handle_case1(payment_note):
+#     utr_match = re.search(r'(UTIBR|AXIS)[0-9A-Z]*(-|.| )', payment_note)
+#     trf_id_match = re.search(r'(trf_[^ ]+)', payment_note)
+#     utr = utr_match.group(0)[:-1] if utr_match else None
+#     trf_id = trf_id_match.group(0) if trf_id_match else None
+#     return trf_id, utr, None, None, 'case1'
+
 def handle_case1(payment_note):
-    utr_match = re.search(r'(UTIBR|AXIS)[0-9A-Z]*(-|.| )', payment_note)
+    # Updated regex for UTR
+    utr_match = re.search(r'(UTIBR|AXISCN)[0-9]+', payment_note)
     trf_id_match = re.search(r'(trf_[^ ]+)', payment_note)
-    utr = utr_match.group(0)[:-1] if utr_match else None
+    
+    # Extract matched UTR and TRF ID
+    utr = utr_match.group(0) if utr_match else None
     trf_id = trf_id_match.group(0) if trf_id_match else None
-    return trf_id, utr, None, None, 'case1'
+    
+    found = True
+    
+    if utr is None:
+        found = False
+    
+    return trf_id, utr, None, None, 'case1', found
 
 # Case 2: Match using `file2` and `file3`
 def handle_case2(payment_mode, file2, file3, file1_amount):
@@ -24,12 +40,19 @@ def handle_case2(payment_mode, file2, file3, file1_amount):
     matches_file2 = file2[file2['source'] == order_id]
     if matches_file2.empty:
         return None, None, None, None, None
-
+        
     final_matches = matches_file2[matches_file2['amount'] == file1_amount]
     if final_matches.empty:
         return None, None, None, None, None
+    
 
-    selected_match = final_matches.iloc[0]
+    non_null_utr_matches = final_matches[final_matches['settlement_utr'] != '']
+    # print(final_matches['settlement_utr'])
+    if not non_null_utr_matches.empty:
+        selected_match = non_null_utr_matches.iloc[0]
+    else:
+        selected_match = final_matches.iloc[0]
+
     file2.drop(index=selected_match.name, inplace=True)
 
     return (
@@ -50,7 +73,12 @@ def process_row(row, file2, file3):
         payment_mode = str(row.get('Payment mode', '')).strip()
 
         if payment_note and payment_note.lower() != 'nan':  # Case 1
-            return handle_case1(payment_note)
+            trf_id, utr, value1, value2, case_flag, found = handle_case1(payment_note)
+            if found:
+                return trf_id, utr, None, None, case_flag
+            else:
+                file1_amount = row['Amount(₹)']
+                return handle_case2(payment_mode, file2, file3, file1_amount)
 
         if pd.isnull(payment_note) or payment_note == '' or payment_note.lower() == 'nan':  # Case 2
             file1_amount = row['Amount(₹)']
