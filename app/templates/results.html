@@ -24,6 +24,9 @@
             {% if file2 %}
                 <a href="{{ url_for('download_file', filename=file2) }}" class="btn btn-success btn-block">Difference Report File</a>
             {% endif %}
+            {% if non_zero_diff %}
+                <a href="{{ url_for('download_file', filename=non_zero_diff) }}" class="btn btn-success btn-block">Non-Zero UTR File</a>
+            {% endif %}
             {% if pre_primary or primary %}
                 {% if pre_primary %}
                     <a href="{{ url_for('download_file', filename=pre_primary) }}" class="btn btn-success btn-block">Pre-Primary Section</a>
@@ -31,9 +34,6 @@
                 {% if primary %}
                     <a href="{{ url_for('download_file', filename=primary) }}" class="btn btn-success btn-block">Primary Section</a>
                 {% endif %}
-            {% endif %}
-            {% if non_zero_diff %}
-                <a href="{{ url_for('download_file', filename=non_zero_diff) }}" class="btn btn-success btn-block">Non-Zero Difference File</a>
             {% endif %}
         </div>
     </div>
