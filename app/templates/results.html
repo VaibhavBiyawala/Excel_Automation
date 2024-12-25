@@ -32,6 +32,9 @@
                     <a href="{{ url_for('download_file', filename=primary) }}" class="btn btn-success btn-block">Primary Section</a>
                 {% endif %}
             {% endif %}
+            {% if non_zero_diff %}
+                <a href="{{ url_for('download_file', filename=non_zero_diff) }}" class="btn btn-success btn-block">Non-Zero Difference File</a>
+            {% endif %}
         </div>
     </div>
     {% include 'footer.html' %}

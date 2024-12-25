@@ -50,7 +50,8 @@ def results():
     file2 = session.get('file2', None)
     pre_primary = session.get('pre_primary', None)
     primary = session.get('primary', None)
-    return render_template('results.html', file1=file1, file2=file2, pre_primary=pre_primary, primary=primary)
+    non_zero_diff = session.get('non_zero_diff', None)
+    return render_template('results.html', file1=file1, file2=file2, pre_primary=pre_primary, primary=primary, non_zero_diff=non_zero_diff)
 
 @app.route('/download/<filename>')
 def download_file(filename):
@@ -88,7 +89,7 @@ def online_upload():
         concat_file = concat_trans_his_files(file4_path, file5_path)
 
         # Process the files
-        d1_path, d2_path, pre_primary_path, primary_path = process_files(file1_path, file2_path, file3_path, concat_file)
+        d1_path, d2_path, pre_primary_path, primary_path, non_zero_diff_path = process_files(file1_path, file2_path, file3_path, concat_file)
 
         # Delete the uploaded files after processing
         os.remove(file1_path)
@@ -103,6 +104,7 @@ def online_upload():
         session['file2'] = d2_path
         session['pre_primary'] = pre_primary_path
         session['primary'] = primary_path
+        session['non_zero_diff'] = non_zero_diff_path
 
         return redirect(url_for('results'))
 
@@ -147,8 +149,7 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
 
     file1[['trf_id', 'UTR', 'Rozarpay', 'difference', 'case_flag']] = file1.apply(
         lambda row: pd.Series(process_row(row, file2, file3)),
-        axis=1
-    )
+        axis=1 )
 
     process_unmatched_rows(file1, file2, file3)
     file1.drop(columns=['case_flag'], inplace=True)
@@ -181,12 +182,26 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
 
     d1_path = save_output(file1)
 
-    pre_primary_path, primary_path = filter_section(d1_path)        
     grouped_results = process_final_results(file1, file4)
+    
     d2_path = save_final_results(grouped_results)
     
-    return d1_path, d2_path, pre_primary_path, primary_path
+    # Filter entries from file1 where the UTR associated with difference is non-zero in grouped_results
+    non_zero_diff_utr = grouped_results[grouped_results['Difference'] != 0]['UTR']
+    non_zero_diff_entries = file1[file1['UTR'].isin(non_zero_diff_utr)]
 
+    # Save the filtered data to a new Excel file
+    non_zero_diff_path = d1_path.replace('.xlsx', '_non_zero_diff.xlsx')
+    non_zero_diff_entries.to_excel(non_zero_diff_path, index=False)
+    
+    zero_diff_utr = grouped_results[grouped_results['Difference'] == 0]['UTR']
+    zero_diff_entries = file1[file1['UTR'].isin(zero_diff_utr)]
+    zero_diff_entries_path = d1_path.replace('.xlsx', '_zero_diff.xlsx')
+    zero_diff_entries.to_excel(zero_diff_entries_path, index=False)
+    pre_primary_path, primary_path = filter_section(zero_diff_entries_path)       
+    
+    return d1_path, d2_path, pre_primary_path, primary_path, non_zero_diff_path
+    
 def filter_section(file_cash_path):
     # read the excel file
     file_cash = pd.read_excel(file_cash_path)
@@ -227,7 +242,6 @@ def process_cash_file(file_cash_path, skip_row = True):
     pre_primary_df = file_cash[file_cash['Section / Department'].apply(lambda x: any(x.startswith(prefix) for prefix in pre_primary_sections))]
     primary_df = file_cash[file_cash['Section / Department'].apply(lambda x: any(x.startswith(prefix) for prefix in primary_sections))]
 
-    # Save the filtered data to new CSV files
     pre_primary_path = file_cash_path.replace('.csv', '_pre_primary.csv')
     primary_path = file_cash_path.replace('.csv', '_primary.csv')
     pre_primary_df.to_csv(pre_primary_path, index=False)
@@ -236,4 +250,4 @@ def process_cash_file(file_cash_path, skip_row = True):
     return pre_primary_path, primary_path
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)
