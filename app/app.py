@@ -72,12 +72,14 @@ def online_upload():
         file3 = request.files['file3']
         file4 = request.files['file4']
         file5 = request.files['file5']
+        file6 = request.files['file6']
 
         file1_path = os.path.join(app.config['UPLOAD_FOLDER'], file1.filename)
         file2_path = os.path.join(app.config['UPLOAD_FOLDER'], file2.filename)
         file3_path = os.path.join(app.config['UPLOAD_FOLDER'], file3.filename)
         file4_path = os.path.join(app.config['UPLOAD_FOLDER'], file4.filename)
         file5_path = os.path.join(app.config['UPLOAD_FOLDER'], file5.filename)
+        file6_path = os.path.join(app.config['UPLOAD_FOLDER'], file6.filename)
 
         # Save the uploaded files
         file1.save(file1_path)
@@ -85,11 +87,12 @@ def online_upload():
         file3.save(file3_path)
         file4.save(file4_path)
         file5.save(file5_path)
+        file6.save(file6_path)
         
         concat_file = concat_trans_his_files(file4_path, file5_path)
 
         # Process the files
-        d1_path, d2_path, pre_primary_path, primary_path, non_zero_diff_path = process_files(file1_path, file2_path, file3_path, concat_file)
+        d1_path, d2_path, pre_primary_path, primary_path, non_zero_diff_path = process_files(file1_path, file2_path, file3_path, concat_file, file6_path)
 
         # Delete the uploaded files after processing
         os.remove(file1_path)
@@ -97,6 +100,7 @@ def online_upload():
         os.remove(file3_path)
         os.remove(file4_path)
         os.remove(file5_path)
+        os.remove(file6_path)
         os.remove(concat_file)
 
         # Store processed file paths in session for download
@@ -141,11 +145,11 @@ def cash_upload():
     return render_template('cash_upload.html')
 
 def extract_utr(description):
-    match = re.search(r'(UTIBR|AXIS)[0-9A-Z]*', description)
+    match = re.search(r'(UTIB|AXIS)[0-9A-Z]*', description)
     return match.group(0) if match else None
 
-def process_files(file1_path, file2_path, file3_path, file4_path):
-    file1, file2, file3, file4 = load_files(file1_path, file2_path, file3_path, file4_path)
+def process_files(file1_path, file2_path, file3_path, file4_path, file6_path):
+    file1, file2, file3, file4, file6 = load_files(file1_path, file2_path, file3_path, file4_path, file6_path)
 
     file1[['trf_id', 'UTR', 'Rozarpay', 'difference', 'case_flag']] = file1.apply(
         lambda row: pd.Series(process_row(row, file2, file3)),
@@ -157,10 +161,13 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
 
     # Extract UTR from file4 descriptions
     file4['Extracted UTR'] = file4['Description'].apply(extract_utr)
+    print(file4['Extracted UTR'].head(15))
 
+    # Add 'UTIB' column by matching UTR with settlement_utr from file6
+    file1['UTIB'] = file1['UTR'].apply(lambda utr: file6[file6['settlement_utr'] == utr]['22 Digit'].values[0] if not file6[file6['settlement_utr'] == utr].empty else None)
 
     # Add 'Account Number' column to file1 by matching UTR
-    file1['Account Number'] = file1['UTR'].apply(lambda utr: file4[file4['Extracted UTR'] == utr]['Account Number'].values[0] if not file4[file4['Extracted UTR'] == utr].empty else None)    
+    file1['Account Number'] = file1['UTIB'].apply(lambda utr: file4[file4['Extracted UTR'] == utr]['Account Number'].values[0] if not file4[file4['Extracted UTR'] == utr].empty else None)    
     
     # Add 'Name Valid Transaction' column based on conditions
     def validate_transaction(row):
@@ -176,10 +183,9 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
             return False
         
         return None
-
-
+        
     file1['Valid Transaction'] = file1.apply(validate_transaction, axis=1)
-
+    
     d1_path = save_output(file1)
 
     grouped_results = process_final_results(file1, file4)
@@ -187,15 +193,15 @@ def process_files(file1_path, file2_path, file3_path, file4_path):
     d2_path = save_final_results(grouped_results)
     
     # Filter entries from file1 where the UTR associated with difference is non-zero in grouped_results
-    non_zero_diff_utr = grouped_results[grouped_results['Difference'] != 0]['UTR']
-    non_zero_diff_entries = file1[file1['UTR'].isin(non_zero_diff_utr)]
+    non_zero_diff_utr = grouped_results[grouped_results['Difference'] != 0]['UTIB']
+    non_zero_diff_entries = file1[file1['UTIB'].isin(non_zero_diff_utr)]
 
     # Save the filtered data to a new Excel file
     non_zero_diff_path = d1_path.replace('.xlsx', '_non_zero_diff.xlsx')
     non_zero_diff_entries.to_excel(non_zero_diff_path, index=False)
     
-    zero_diff_utr = grouped_results[grouped_results['Difference'] == 0]['UTR']
-    zero_diff_entries = file1[file1['UTR'].isin(zero_diff_utr)]
+    zero_diff_utr = grouped_results[grouped_results['Difference'] == 0]['UTIB']
+    zero_diff_entries = file1[file1['UTIB'].isin(zero_diff_utr)]
     zero_diff_entries_path = d1_path.replace('.xlsx', '_zero_diff.xlsx')
     zero_diff_entries.to_excel(zero_diff_entries_path, index=False)
     pre_primary_path, primary_path = filter_section(zero_diff_entries_path)       

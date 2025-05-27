@@ -3,7 +3,7 @@ import re
 import os
 
 def process_final_results(file1, file4):
-    grouped = file1.groupby('UTR', as_index=False)['Amount(₹)'].sum()
+    grouped = file1.groupby('UTIB', as_index=False)['Amount(₹)'].sum()
     grouped.rename(columns={'Amount(₹)': 'Subtotal'}, inplace=True)
 
     grouped['Transaction Amount(INR)'] = None
@@ -12,8 +12,8 @@ def process_final_results(file1, file4):
     grouped['Account Number'] = None  # Add Account Number column
 
     for idx, row in grouped.iterrows():
-        utr = row['UTR']
-        # Match UTR with the Description column in File 4
+        utr = row['UTIB']
+        # Match UTIB with the Description column in File 4
         matched_row = file4[file4['Description'].str.contains(utr, na=False, regex=True)]
 
         if not matched_row.empty:
