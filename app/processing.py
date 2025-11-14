@@ -107,3 +107,75 @@ def process_unmatched_rows(file1, file2, file3):
         file1.at[idx, 'difference'] = (
             row['Amount(₹)'] - file1.at[idx, 'Rozarpay'] if pd.notnull(file1.at[idx, 'Rozarpay']) else None
         )
+
+# Extract trf_ or pay_ values from text
+def extract_trf_or_pay(text):
+    if pd.isna(text) or text == '':
+        return None
+    
+    # First try to match trf_
+    trf_match = re.search(r'trf_[a-zA-Z0-9]+', str(text))
+    if trf_match:
+        return trf_match.group(0)
+    
+    # If no trf_ found, try to match pay_
+    pay_match = re.search(r'pay_[a-zA-Z0-9]+', str(text))
+    if pay_match:
+        return pay_match.group(0)
+    
+    return None
+
+# Fill empty TRF IDs in file1
+def fill_empty_trf_ids(file1):
+    for idx, row in file1.iterrows():
+        if row['trf_id'] == '-' or pd.isna(row['trf_id']):
+            # Try Payment Note first
+            payment_note = str(row.get('Payment Note', '')).strip()
+            extracted_value = extract_trf_or_pay(payment_note)
+            
+            # If not found in Payment Note, try Payment mode
+            if not extracted_value:
+                payment_mode = str(row.get('Payment mode', '')).strip()
+                extracted_value = extract_trf_or_pay(payment_mode)
+            
+            # Update the trf_id if a value was extracted
+            if extracted_value:
+                file1.at[idx, 'trf_id'] = extracted_value
+    
+    return file1
+
+# Group file1 by specified columns
+def group_file1_by_receipt(file1):
+    groupby_columns = ['Receipt', 'Payer name', 'Payer type', 'Section / Department', 'trf_id', 'Payment date']
+    
+    # Group and sum Amount(₹)
+    grouped_df = file1.groupby(groupby_columns, as_index=False).agg({
+        'Amount(₹)': 'sum'
+    })
+    
+    return grouped_df
+
+def enrich_group_with_file6(group_df, file6, how='left'):
+    """
+    Join grouped_df with file6 on trf_id (group) vs entity_id/trf_id/id (file6),
+    bring in amount and additional_utr, compute difference.
+    """
+    if group_df.empty:
+        return group_df.assign(amount=None, UTIB=None, difference=None)
+    # Determine entity id column in file6
+    entity_col = next((c for c in ['entity_id', 'trf_id', 'id'] if c in file6.columns), None)
+    if entity_col is None:
+        raise ValueError("file6 must contain one of: entity_id, trf_id, id")
+    needed_cols = [entity_col]
+    for col in ['amount', 'additional_utr']:
+        if col not in file6.columns:
+            raise ValueError(f"file6 missing required column: {col}")
+        needed_cols.append(col)
+    subset = file6[needed_cols].rename(columns={
+        entity_col: 'trf_id',
+        'amount': 'amount',
+        'additional_utr': 'UTIB'
+    })
+    merged = group_df.merge(subset, on='trf_id', how=how)
+    merged['difference'] = merged['Amount(₹)'] - merged['amount']
+    return merged

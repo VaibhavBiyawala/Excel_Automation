@@ -13,8 +13,8 @@ def process_final_results(file1, file4):
 
     for idx, row in grouped.iterrows():
         utr = row['UTIB']
-        # Match UTIB with the Description column in File 4
-        matched_row = file4[file4['Description'].str.contains(utr, na=False, regex=True)]
+        # Match UTR with the Extracted UTR column in File 4
+        matched_row = file4[file4['Extracted UTR'] == utr]
 
         if not matched_row.empty:
             # Get the Transaction Amount, Value Date, and Account Number from the first match
@@ -25,12 +25,6 @@ def process_final_results(file1, file4):
             grouped.at[idx, 'Difference'] = row['Subtotal'] - transaction_amount
             grouped.at[idx, 'Value Date'] = value_date
             grouped.at[idx, 'Account Number'] = account_number  # Set Account Number
-        else:
-            # If no match found, mark as NaN
-            grouped.at[idx, 'Transaction Amount(INR)'] = None
-            grouped.at[idx, 'Difference'] = None
-            grouped.at[idx, 'Value Date'] = None
-            grouped.at[idx, 'Account Number'] = None  # Set Account Number as NaN
 
     return grouped
 

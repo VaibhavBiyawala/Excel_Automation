@@ -7,7 +7,7 @@ def load_files(file1, file2, file3, file4, file6):
     file2 = pd.read_excel(os.path.join(file2))
     file3 = pd.read_excel(os.path.join(file3))
     file4 = pd.read_excel(os.path.join(file4))
-    file6 = pd.read_excel(os.path.join(file6), sheet_name='Sheet2')
+    file6 = pd.read_excel(os.path.join(file6))
 
     # Ensure consistent column names
     file1.rename(columns={'TRF ID': 'trf_id'}, inplace=True)
