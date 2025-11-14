@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template, redirect, url_for, send_file, session, flash
 from data_loader import load_files
-from processing import process_row, process_unmatched_rows
+from processing import process_row, process_unmatched_rows, fill_empty_trf_ids, group_file1_by_receipt, enrich_group_with_file6
 from result_processor import process_final_results, save_final_results
 from utils import reorder_columns, save_output, concat_trans_his_files
 
@@ -151,58 +151,35 @@ def extract_utr(description):
 def process_files(file1_path, file2_path, file3_path, file4_path, file6_path):
     file1, file2, file3, file4, file6 = load_files(file1_path, file2_path, file3_path, file4_path, file6_path)
 
-    file1[['trf_id', 'UTR', 'Rozarpay', 'difference', 'case_flag']] = file1.apply(
-        lambda row: pd.Series(process_row(row, file2, file3)),
-        axis=1 )
-
-    process_unmatched_rows(file1, file2, file3)
-    file1.drop(columns=['case_flag'], inplace=True)
-    file1 = reorder_columns(file1)
-
+    # Fill empty TRF IDs
+    file1 = fill_empty_trf_ids(file1)
+    
+    # Create grouped dataframe
+    grouped_df = group_file1_by_receipt(file1)
+    enriched_grouped_df = enrich_group_with_file6(grouped_df, file6)
+    
     # Extract UTR from file4 descriptions
     file4['Extracted UTR'] = file4['Description'].apply(extract_utr)
-    print(file4['Extracted UTR'].head(15))
-
-    # Add 'UTIB' column by matching UTR with settlement_utr from file6
-    file1['UTIB'] = file1['UTR'].apply(lambda utr: file6[file6['settlement_utr'] == utr]['additional_utr'].values[0] if not file6[file6['settlement_utr'] == utr].empty else None)
-    # print(file1['UTIB'].head(15))
-
-    # Add 'Account Number' column to file1 by matching UTR
-    file1['Account Number'] = file1['UTR'].apply(lambda utr: file4[file4['Extracted UTR'] == utr]['Account Number'].values[0] if not file4[file4['Extracted UTR'] == utr].empty else None)    
     
-    # Add 'Name Valid Transaction' column based on conditions
-    def validate_transaction(row):
-        collection = row['Collection']
-        account_number = row['Account Number']
-        
-        if pd.isna(collection) or pd.isna(account_number):
-            return 'missing / improper data'
-        
-        if 'extra' in collection.lower() and account_number != 5205010739:
-            return False
-        if 'fee' in collection.lower() and account_number != 5205009403:
-            return False
-        
-        return None
-        
-    file1['Valid Transaction'] = file1.apply(validate_transaction, axis=1)
+    # Add 'Account Number' column to enriched_grouped_df by matching UTR
+    enriched_grouped_df['Account Number'] = enriched_grouped_df['UTIB'].apply(lambda utr: file4[file4['Extracted UTR'] == utr]['Account Number'].values[0] if not file4[file4['Extracted UTR'] == utr].empty else None)
     
-    d1_path = save_output(file1)
+    d1_path = save_output(enriched_grouped_df)
 
-    grouped_results = process_final_results(file1, file4)
+    grouped_results = process_final_results(enriched_grouped_df, file4)
     
     d2_path = save_final_results(grouped_results)
     
-    # Filter entries from file1 where the UTR associated with difference is non-zero in grouped_results
-    non_zero_diff_utr = grouped_results[grouped_results['Difference'] != 0]['UTR']
-    non_zero_diff_entries = file1[file1['UTR'].isin(non_zero_diff_utr)]
+    # Filter entries from enriched_grouped_df where the UTR associated with difference is non-zero in grouped_results
+    non_zero_diff_utr = grouped_results[grouped_results['Difference'] != 0]['UTIB']
+    non_zero_diff_entries = enriched_grouped_df[enriched_grouped_df['UTIB'].isin(non_zero_diff_utr)]
 
     # Save the filtered data to a new Excel file
     non_zero_diff_path = d1_path.replace('.xlsx', '_non_zero_diff.xlsx')
     non_zero_diff_entries.to_excel(non_zero_diff_path, index=False)
 
-    zero_diff_utr = grouped_results[grouped_results['Difference'] == 0]['UTR']
-    zero_diff_entries = file1[file1['UTR'].isin(zero_diff_utr)]
+    zero_diff_utr = grouped_results[grouped_results['Difference'] == 0]['UTIB']
+    zero_diff_entries = enriched_grouped_df[enriched_grouped_df['UTIB'].isin(zero_diff_utr)]
     zero_diff_entries_path = d1_path.replace('.xlsx', '_zero_diff.xlsx')
     zero_diff_entries.to_excel(zero_diff_entries_path, index=False)
     pre_primary_path, primary_path = filter_section(zero_diff_entries_path)       
