@@ -1,0 +1,13 @@
+after this i want a 2 function call which will calling by passing enr_group_df, file 5, filter="ECD"
+
+and in second call passing the result file obtain from above call with file 6, filter!="ECD"
+
+in this function want to do like 
+process the row were the column UTIB value is null
+after this our next target is Receipt column of file 1 
+where we want to filter out column where receipt begins with  ECD
+after this want to groupby Payment date column and sum the Amount(₹)
+column 
+than from file5 or file6 based on their call 
+convert date column to same format for all the files DD/MM/YYYY
+look for col Transaction Amount(INR) and where we would find same sum amount and date from than record get value of Description column
