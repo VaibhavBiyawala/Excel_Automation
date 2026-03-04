@@ -13,25 +13,13 @@ def reorder_columns(file1):
 
 # Save the final output to Excel
 def save_output(file1, filename='result_file_all.xlsx'):
-    filepath = filename
-    file1.to_excel(filepath, index=False)
-    return filepath
+    file1.to_excel(filename, index=False)
+    return filename
 
-def concat_trans_his_files(file4_path, file5_path):
-    file4 = pd.read_excel(file4_path, skiprows=5, header=None)
-    account_no = str(file4.iloc[0, 0][-12:])  
-    file4 = pd.read_excel(file4_path, skiprows=6)
-    file4['Account Number'] = account_no
-
-    
-    file5 = pd.read_excel(file5_path, skiprows=5, header=None)
-    account_no = str(file5.iloc[0, 0][-12:])  
-    file5 = pd.read_excel(file5_path, skiprows=6)
-    file5['Account Number'] = account_no    
-    
-    combined_file = pd.concat([file4, file5])
-    output_path = file4_path  + 'x'
-    combined_file.to_excel(output_path, index=False)
-    
-    return output_path
+def load_trans_his_files(file_path):
+    file = pd.read_excel(file_path, skiprows=5, header=None)
+    account_no = str(file.iloc[0, 0][-12:])  
+    file = pd.read_excel(file_path, skiprows=6)
+    file['Account Number'] = account_no    
+    return file
 

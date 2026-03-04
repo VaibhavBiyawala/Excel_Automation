@@ -1,8 +1,8 @@
 from flask import Flask, request, render_template, redirect, url_for, send_file, session, flash
 from data_loader import load_files
-from processing import process_row, process_unmatched_rows, fill_empty_trf_ids, group_file1_by_receipt, enrich_group_with_file6
-from result_processor import process_final_results, save_final_results
-from utils import reorder_columns, save_output, concat_trans_his_files
+from processing import process_row, process_unmatched_rows
+from result_processor import process_payment_date_results
+from utils import reorder_columns, save_output, load_trans_his_files
 
 import pandas as pd
 import os
@@ -48,10 +48,10 @@ def results():
         
     file1 = session.get('file1', None)
     file2 = session.get('file2', None)
-    pre_primary = session.get('pre_primary', None)
-    primary = session.get('primary', None)
+    grouped_results_non_ecd = session.get('grouped_results_non_ecd', None)
+    grouped_results_ecd = session.get('grouped_results_ecd', None)
     non_zero_diff = session.get('non_zero_diff', None)
-    return render_template('results.html', file1=file1, file2=file2, pre_primary=pre_primary, primary=primary, non_zero_diff=non_zero_diff)
+    return render_template('results.html', file1=file1, file2=file2, grouped_results_non_ecd=grouped_results_non_ecd, grouped_results_ecd=grouped_results_ecd, non_zero_diff=non_zero_diff)
 
 @app.route('/download/<filename>')
 def download_file(filename):
@@ -72,14 +72,12 @@ def online_upload():
         file3 = request.files['file3']
         file4 = request.files['file4']
         file5 = request.files['file5']
-        file6 = request.files['file6']
 
         file1_path = os.path.join(app.config['UPLOAD_FOLDER'], file1.filename)
         file2_path = os.path.join(app.config['UPLOAD_FOLDER'], file2.filename)
         file3_path = os.path.join(app.config['UPLOAD_FOLDER'], file3.filename)
         file4_path = os.path.join(app.config['UPLOAD_FOLDER'], file4.filename)
         file5_path = os.path.join(app.config['UPLOAD_FOLDER'], file5.filename)
-        file6_path = os.path.join(app.config['UPLOAD_FOLDER'], file6.filename)
 
         # Save the uploaded files
         file1.save(file1_path)
@@ -87,12 +85,12 @@ def online_upload():
         file3.save(file3_path)
         file4.save(file4_path)
         file5.save(file5_path)
-        file6.save(file6_path)
         
-        concat_file = concat_trans_his_files(file4_path, file5_path)
+        file4_df = load_trans_his_files(file4_path)
+        file5_df = load_trans_his_files(file5_path)
 
         # Process the files
-        d1_path, d2_path, pre_primary_path, primary_path, non_zero_diff_path = process_files(file1_path, file2_path, file3_path, concat_file, file6_path)
+        d1_path, d2_path, grouped_results_ecd, grouped_results_non_ecd = process_files(file1_path, file2_path, file3_path, file4_df, file5_df)
 
         # Delete the uploaded files after processing
         os.remove(file1_path)
@@ -100,15 +98,12 @@ def online_upload():
         os.remove(file3_path)
         os.remove(file4_path)
         os.remove(file5_path)
-        os.remove(file6_path)
-        os.remove(concat_file)
 
         # Store processed file paths in session for download
         session['file1'] = d1_path
         session['file2'] = d2_path
-        session['pre_primary'] = pre_primary_path
-        session['primary'] = primary_path
-        session['non_zero_diff'] = non_zero_diff_path
+        session['grouped_results_ecd'] = grouped_results_ecd
+        session['grouped_results_non_ecd'] = grouped_results_non_ecd
 
         return redirect(url_for('results'))
 
@@ -148,43 +143,31 @@ def extract_utr(description):
     match = re.search(r'(UTIB|AXIS)[0-9A-Z]*', description)
     return match.group(0) if match else None
 
-def process_files(file1_path, file2_path, file3_path, file4_path, file6_path):
-    file1, file2, file3, file4, file6 = load_files(file1_path, file2_path, file3_path, file4_path, file6_path)
+def process_files(file1_path, file2_path, file3_path, file4, file5):
+    file1, file2, file3 = load_files(file1_path, file2_path, file3_path)
 
-    # Fill empty TRF IDs
-    file1 = fill_empty_trf_ids(file1)
-    
-    # Create grouped dataframe
-    grouped_df = group_file1_by_receipt(file1)
-    enriched_grouped_df = enrich_group_with_file6(grouped_df, file6)
-    
-    # Extract UTR from file4 descriptions
-    file4['Extracted UTR'] = file4['Description'].apply(extract_utr)
-    
-    # Add 'Account Number' column to enriched_grouped_df by matching UTR
-    enriched_grouped_df['Account Number'] = enriched_grouped_df['UTIB'].apply(lambda utr: file4[file4['Extracted UTR'] == utr]['Account Number'].values[0] if not file4[file4['Extracted UTR'] == utr].empty else None)
-    
-    d1_path = save_output(enriched_grouped_df)
+    file1[['trf_id', 'UTR', 'Rozarpay', 'difference', 'case_flag']] = file1.apply(
+        lambda row: pd.Series(process_row(row, file2, file3)),
+        axis=1 )
 
-    grouped_results = process_final_results(enriched_grouped_df, file4)
-    
-    d2_path = save_final_results(grouped_results)
-    
-    # Filter entries from enriched_grouped_df where the UTR associated with difference is non-zero in grouped_results
-    non_zero_diff_utr = grouped_results[grouped_results['Difference'] != 0]['UTIB']
-    non_zero_diff_entries = enriched_grouped_df[enriched_grouped_df['UTIB'].isin(non_zero_diff_utr)]
+    process_unmatched_rows(file1, file2, file3)
+    file1.drop(columns=['case_flag'], inplace=True)
+    file1 = reorder_columns(file1)    
 
-    # Save the filtered data to a new Excel file
-    non_zero_diff_path = d1_path.replace('.xlsx', '_non_zero_diff.xlsx')
-    non_zero_diff_entries.to_excel(non_zero_diff_path, index=False)
+    # Split file1 into ECD and non-ECD based on 'Receipt' column
+    df1 = file1[file1['Receipt'].str.startswith('ECD/', na=False)]
+    d1_path = save_output(df1, filename='result_file_ecd.xlsx')
+    df2 = file1[~file1.index.isin(df1.index)]
+    d2_path = save_output(df2, filename='result_file_non_ecd.xlsx')
 
-    zero_diff_utr = grouped_results[grouped_results['Difference'] == 0]['UTIB']
-    zero_diff_entries = enriched_grouped_df[enriched_grouped_df['UTIB'].isin(zero_diff_utr)]
-    zero_diff_entries_path = d1_path.replace('.xlsx', '_zero_diff.xlsx')
-    zero_diff_entries.to_excel(zero_diff_entries_path, index=False)
-    pre_primary_path, primary_path = filter_section(zero_diff_entries_path)       
+    # Process payment date results for both ECD and non-ECD files
+    grouped_results_ecd = process_payment_date_results(df1, file4)
+    grouped_results_ecd_path = save_output(grouped_results_ecd, filename='grouped_results_ecd.xlsx')
     
-    return d1_path, d2_path, pre_primary_path, primary_path, non_zero_diff_path
+    grouped_results_non_ecd = process_payment_date_results(df2, file5)
+    grouped_results_non_ecd_path = save_output(grouped_results_non_ecd, filename='grouped_results_non_ecd.xlsx')
+    
+    return d1_path, d2_path, grouped_results_ecd_path, grouped_results_non_ecd_path
     
 def filter_section(file_cash_path):
     # read the excel file
