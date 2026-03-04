@@ -2,33 +2,24 @@ import pandas as pd
 import re
 import os
 
-def process_final_results(file1, file4):
-    grouped = file1.groupby('UTIB', as_index=False)['Amount(₹)'].sum()
+def process_payment_date_results(file1, file4):
+    grouped = file1.groupby('Payment date', as_index=False)['Amount(₹)'].sum()
     grouped.rename(columns={'Amount(₹)': 'Subtotal'}, inplace=True)
 
-    grouped['Transaction Amount(INR)'] = None
-    grouped['Difference'] = None
     grouped['Value Date'] = None
-    grouped['Account Number'] = None  # Add Account Number column
+    grouped['Account Number'] = None
 
     for idx, row in grouped.iterrows():
-        utr = row['UTIB']
-        # Match UTR with the Extracted UTR column in File 4
-        matched_row = file4[file4['Extracted UTR'] == utr]
+        subtotal = row['Subtotal']
+        pay_date = pd.to_datetime(row['Payment date'], dayfirst=True, errors='coerce')
+        matched_rows = file4[file4['Transaction Amount(INR)'] == subtotal]
 
-        if not matched_row.empty:
-            # Get the Transaction Amount, Value Date, and Account Number from the first match
-            transaction_amount = matched_row.iloc[0]['Transaction Amount(INR)']
-            value_date = matched_row.iloc[0]['Value Date']
-            account_number = matched_row.iloc[0]['Account Number']
-            grouped.at[idx, 'Transaction Amount(INR)'] = transaction_amount
-            grouped.at[idx, 'Difference'] = row['Subtotal'] - transaction_amount
-            grouped.at[idx, 'Value Date'] = value_date
-            grouped.at[idx, 'Account Number'] = account_number  # Set Account Number
+        if not matched_rows.empty and pd.notna(pay_date):
+            for _, match in matched_rows.iterrows():
+                val_date = pd.to_datetime(match['Value Date'], dayfirst=True, errors='coerce')
+                if pd.notna(val_date) and pay_date <= val_date and (val_date - pay_date).days <= 7:
+                    grouped.at[idx, 'Value Date'] = match['Value Date']
+                    grouped.at[idx, 'Account Number'] = match['Account Number']
+                    break
 
     return grouped
-
-def save_final_results(grouped, filename='grouped_results.xlsx'):
-    filepath = filename
-    grouped.to_excel(filepath, index=False)
-    return filepath
